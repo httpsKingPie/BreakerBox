@@ -61,10 +61,11 @@ function BreakerBox:__CreateConnection(ConnectionData: table)
 	if Arguments then
 		Connection = Signal:Connect(function(...)
 			local SignalArguments = {...}
-			warn("Signal arguments", SignalArguments)
+
+			local ModifiedArguments = Utilities:DeepCopyTable(Arguments)
 			
-			for Index, SignalArgument in pairs (SignalArguments) do
-				table.insert(Arguments, Index, SignalArgument)
+			for Index, SignalArgument in pairs (SignalArguments) do --// Insert the arguments provided by the signal to the function
+				table.insert(ModifiedArguments, Index, SignalArgument)
 			end
 			
 			BoundFunction(table.unpack(Arguments))
@@ -72,8 +73,7 @@ function BreakerBox:__CreateConnection(ConnectionData: table)
 	else
 		Connection = Signal:Connect(function(...)
 			local SignalArguments = {...}
-			warn("Signal arguments", SignalArguments)
-			
+
 			BoundFunction(table.unpack(SignalArguments))
 		end)
 	end
@@ -134,7 +134,7 @@ end
 
     @param Arrray table
 
-    Adds breakers *en masse*, through a passed array.  Array values are dictionaries with the following key pairs: ["Signal"] = RBXScriptSignal | Signal, ["Function"] function, ["Arguments"] = table | nil, ["OpenBreaker"] = boolean | nil
+    Adds breakers *en masse*, through a passed array.  Array values are dictionaries with the following key pairs: ["Signal"] = RBXScriptSignal | Signal, ["Function"] = function, ["Arguments"] = table | nil, ["OpenBreaker"] = boolean | nil
 ]=]
 function BreakerBox:AddBreakersFromArray(Array: table)
 	for _, Dictionary in ipairs (Array) do
@@ -144,15 +144,15 @@ function BreakerBox:AddBreakersFromArray(Array: table)
 		local OpenBreaker = Dictionary["OpenBreaker"] --// Optional
 
 		if not Signal then
-			Utilities:StackTraceWarn("Missing critical element: Signal")
+			Utilities:StackTraceWarn("Missing critical element: Signal.  Failed to create breaker with the following dictionary", Dictionary)
 
-			return
+			continue
 		end
 
 		if not Function then
-			Utilities:StackTraceWarn("Missing critical element: Function")
+			Utilities:StackTraceWarn("Missing critical element: Function.  Failed to create breaker with the following dictionary", Dictionary)
 
-			return
+			continue
 		end
 
 		self:AddBreaker(Signal, Function, Arguments, OpenBreaker)
