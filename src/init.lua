@@ -55,6 +55,24 @@ function BreakerBox:__CreateConnection(ConnectionData: table)
 	local Signal = ConnectionData["Signal"]
 	local BoundFunction = ConnectionData["Bound Function"]
 	local Arguments = ConnectionData["Arguments"]
+	local IsOpen = ConnectionData["Open"]
+	local InitiallyOpened = ConnectionData["Initially Opened"]
+
+	if IsOpen and not InitiallyOpened then
+		Utilities:StackTraceWarn("Attempted to restore a Breaker that is already open.")
+
+		return
+	end
+
+	--[[
+		BreakerBox pop a warning (above) if an existing Breaker is opened.
+		However, to allow Breakers to be opened immediately upon creation, `InitiallyOpened` exists which basically tells the module whether this is the first time the Breaker is being opened.
+		If it is the first time and `IsOpen` is true, that just means the developer manually set `OpenBreaker` to true, so we can allow this to occur.
+		This only matters the first time the connection is opened, so we set `InitiallyOpened` to nil afterwards and treat it as an ordinary Breaker thereafter.
+	]]
+	if InitiallyOpened then
+		ConnectionData["Initially Opened"] = nil
+	end
 
 	local Connection
 
@@ -79,6 +97,7 @@ function BreakerBox:__CreateConnection(ConnectionData: table)
 	end
 
 	table.insert(self["Active Connections"], Connection)
+	ConnectionData["Open"] = true
 end
 
 --[=[
@@ -116,7 +135,9 @@ function BreakerBox:AddBreaker(Signal: RBXScriptSignal, BoundFunction, Arguments
 	local ConnectionData = {
 		["Signal"] = Signal,
 		["Bound Function"] = BoundFunction,
-		["Arguments"] = Arguments
+		["Arguments"] = Arguments,
+		["Open"] =  OpenBreaker or false,
+		["Initially Opened"] = OpenBreaker or nil,
 	}
 
 	table.insert(self["Connection Summary"], ConnectionData)
@@ -171,6 +192,10 @@ function BreakerBox:BreakAll()
 	end
 
     table.clear(self["Active Connections"])
+
+	for _, ConnectionData: table in pairs (self["Connection Summary"]) do
+		ConnectionData["Open"] = false
+	end
 end
 
 --[=[
